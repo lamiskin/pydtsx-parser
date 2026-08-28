@@ -1,0 +1,53 @@
+name: Bug report
+description: Something parsed incorrectly, or the tool crashed.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug.
+
+        **Do not attach real SSIS packages or production data.** Please reduce
+        your case to a minimal, synthetic `.dtsx` snippet that reproduces the
+        problem, with server names, paths, and credentials replaced.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal reproducer
+      description: A synthetic XML snippet and the command you ran.
+      render: xml
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: pydtsx-parser version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version and OS
+      placeholder: "3.12 on Windows 11"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: no-real-data
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have confirmed this report contains no real or confidential data.
+          required: true

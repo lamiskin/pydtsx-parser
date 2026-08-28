@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pydtsx-parser"
+version = "1.0.0"
+description = "Parse SQL Server Integration Services (SSIS) .dtsx, .dtproj, .conmgr and .params files into structured JSON"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Lachlan Miskin", email = "lamiskin@users.noreply.github.com" }]
+keywords = ["ssis", "dtsx", "etl", "sql-server", "parser", "data-engineering", "lineage"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.2.0"]
+
+[project.scripts]
+pydtsx-parser = "pydtsx_parser.cli:main"
+pydtsx-parser-mcp = "pydtsx_parser.mcp_entry:main"
+
+[project.urls]
+Homepage = "https://github.com/lamiskin/pydtsx-parser"
+Repository = "https://github.com/lamiskin/pydtsx-parser"
+Issues = "https://github.com/lamiskin/pydtsx-parser/issues"
+Changelog = "https://github.com/lamiskin/pydtsx-parser/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+docs = ["mkdocs-material>=9.5"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-xdist>=3.0",
+    "hypothesis>=6.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pre-commit>=3.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["pydtsx_parser*"]
+
+[tool.setuptools.package-data]
+pydtsx_parser = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+markers = [
+    "integration: marks tests that parse local example SSIS files (not bundled in this repository)",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["RUF059", "B905", "B007", "RUF043", "B011", "B017", "E741", "F841"]
+
+[tool.coverage.run]
+source = ["pydtsx_parser"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.mypy]
+python_version = "3.11"
+files = ["pydtsx_parser"]
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+# The package advertises `Typing :: Typed`, so every function it ships is
+# annotated. Full --strict is not yet reachable (generics in the MCP layer).
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+# Optional/platform-specific deps without bundled type stubs.
+module = ["mcp.*", "win32security.*"]
+ignore_missing_imports = true

@@ -1,0 +1,45 @@
+# Virtual environments
+.venv/
+venv/
+
+# Byte-compiled / caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+
+# Packaging / build artifacts
+*.egg-info/
+dist/
+build/
+
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Local example SSIS projects (never commit real packages or data)
+examples/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# AppleDouble resource forks, created when a macOS host writes to a
+# non-HFS/APFS volume. They shadow every file in the tree, so an unqualified
+# `git add -A` would otherwise commit hundreds of them.
+._*
+
+# Docs site build output
+site/
+
+# Claude Code local state (worktrees, session data)
+.claude/
+
+# Local environment / secrets
+.env
+.env.*

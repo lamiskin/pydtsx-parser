@@ -1,0 +1,8 @@
+* text=auto eol=lf
+
+*.dtsx binary
+*.dtproj binary
+*.conmgr binary
+*.params binary
+*.ispac binary
+*.xlsx binary
