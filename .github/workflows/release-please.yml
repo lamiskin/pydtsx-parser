@@ -1,5 +1,9 @@
 name: release-please
 
+# Maintains a rolling "release" PR from Conventional Commits. Merging it bumps
+# the version, updates CHANGELOG.md, tags the release, and creates a GitHub
+# Release — which triggers publish.yml to push to PyPI.
+
 on:
   push:
     branches: [main]

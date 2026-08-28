@@ -1,5 +1,17 @@
 name: Publish
 
+# Publishes when a GitHub Release is created (release-please creates these).
+# Uses PyPI Trusted Publishing (OIDC) — no API tokens or secrets to store.
+# Publishing goes through pypa/gh-action-pypi-publish so each distribution also
+# gets a PEP 740 build attestation.
+#
+# One-time setup, add a GitHub trusted publisher on each index:
+#   PyPI:     Project → Publishing → owner lamiskin, repo pydtsx-parser,
+#             workflow publish.yml, environment pypi
+#   TestPyPI: same, environment testpypi
+#
+# A GitHub Release marked "pre-release" goes to TestPyPI; a full release goes to PyPI.
+
 on:
   release:
     types: [published]
