@@ -7,7 +7,7 @@ lineage, and exploring package structure.
 import json
 import xml.etree.ElementTree as ET
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from pydtsx_parser.constants import NAMESPACES
 from pydtsx_parser.dispatcher import dispatch
@@ -20,7 +20,7 @@ from pydtsx_parser.xml_utils import get_root, parse_xml
 
 _DTS_NS = NAMESPACES["DTS"]
 
-mcp = FastMCP(
+mcp = MCPServer(
     "pydtsx-parser",
     instructions=(
         "Parse SQL Server Integration Services .dtsx package files into "

@@ -2,7 +2,7 @@
 
 The MCP server ships behind the ``mcp`` extra (``pip install
 "pydtsx-parser[mcp]"``); the whole module is skipped when the extra is not
-installed. Tools are FastMCP-decorated plain functions, so they are called
+installed. Tools are MCPServer-decorated plain functions, so they are called
 directly and their JSON string results asserted.
 
 Skipping is a convenience for contributors who install without the extra. CI
@@ -79,7 +79,7 @@ def package_path(tmp_path: Path) -> str:
 
 class TestToolRegistration:
     def test_all_tools_registered(self):
-        """Every documented tool is registered on the FastMCP server."""
+        """Every documented tool is registered on the MCPServer instance."""
         tools = asyncio.run(mcp_server.mcp.list_tools())
         names = {tool.name for tool in tools}
         assert names >= EXPECTED_TOOLS
