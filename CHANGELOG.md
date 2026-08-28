@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-07-30
+## [0.1.0] - 2026-08-28
 
 ### Added
 
@@ -32,5 +32,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Claude Skill for agent-driven use without a server.
 - Type hints throughout, with a PEP 561 `py.typed` marker.
 
-[Unreleased]: https://github.com/lamiskin/pydtsx-parser/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/lamiskin/pydtsx-parser/releases/tag/v1.0.0
+[Unreleased]: https://github.com/lamiskin/pydtsx-parser/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/lamiskin/pydtsx-parser/releases/tag/v0.1.0
