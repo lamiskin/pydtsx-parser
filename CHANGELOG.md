@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/lamiskin/pydtsx-parser/compare/v0.1.0...v0.2.0) (2026-08-28)
+
+
+### Features
+
+* pydtsx-parser 1.0.0 ([8c0fb5a](https://github.com/lamiskin/pydtsx-parser/commit/8c0fb5aed00a8c858cf32883684bbb9261306d0b))
+
+
+### Documentation
+
+* pull workflow comments and job naming from pyegp-parser ([#4](https://github.com/lamiskin/pydtsx-parser/issues/4)) ([d0ef971](https://github.com/lamiskin/pydtsx-parser/commit/d0ef971a2729ca035cd82f86d78e14b0a2b0495d))
+
 ## [Unreleased]
 
 ## [0.1.0] - 2026-08-28
