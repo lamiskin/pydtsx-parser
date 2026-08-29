@@ -136,7 +136,7 @@ def _build_derived_column_component(
             friendly_prop.text = col["friendly_expression"]
 
     # Add an error output (should be skipped)
-    error_output = ET.SubElement(
+    ET.SubElement(
         outputs_container,
         "output",
         attrib={
@@ -284,7 +284,7 @@ def _build_sort_component(
             cf_prop.text = "0"
 
     # Add error output (should be skipped)
-    error_output = ET.SubElement(
+    ET.SubElement(
         outputs_container,
         "output",
         attrib={
@@ -413,7 +413,7 @@ def _build_merge_join_component(
             )
 
     # Add error output (should be skipped)
-    error_output = ET.SubElement(
+    ET.SubElement(
         outputs_container,
         "output",
         attrib={

@@ -18,13 +18,6 @@ from pydtsx_parser.errors import ExtractionError
 
 _DTS_NS = NAMESPACES["DTS"]
 
-# EvalOp values that indicate expression-based evaluation
-_EXPRESSION_EVAL_OPS = {
-    "Expression",
-    "ExpressionAndConstraint",
-    "ExpressionOrConstraint",
-}
-
 # Constraint value mapping: numeric codes to human-readable names
 _CONSTRAINT_VALUE_MAP = {
     "0": "Success",
