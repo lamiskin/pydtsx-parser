@@ -124,7 +124,7 @@ print(result["content"]["package_attributes"]["object_name"])
 ```json
 {
   "format_version": "1.0.0",
-  "parser_version": "1.0.0",
+  "parser_version": "0.1.0",
   "source_file_path": "/path/to/Package.dtsx",
   "file_type": "dtsx_package",
   "parsed_at": "2026-01-01T09:00:00+10:00",
