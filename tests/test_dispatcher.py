@@ -1,6 +1,7 @@
 """Unit tests for the file dispatcher module."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -256,6 +257,77 @@ class TestDispatch:
         assert "connection_manager_index" in cross_refs
         assert "DB" in cross_refs["connection_manager_index"]
 
+    def test_directory_dtproj_counted_as_project(self, tmp_path):
+        """A valid .dtproj in a directory scan is grouped under 'projects'.
+
+        A second file that sorts after it keeps the dispatch loop going
+        past the .dtproj entry, rather than it happening to be the last
+        file processed.
+        """
+        dtproj_content = (
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            "<Project>"
+            "<DeploymentModel>Package</DeploymentModel>"
+            "<ProductVersion>14.0.1000.100</ProductVersion>"
+            "<SchemaVersion>8.0.0.0</SchemaVersion>"
+            "</Project>"
+        )
+        (tmp_path / "AProject.dtproj").write_text(dtproj_content, encoding="utf-8")
+        params_content = (
+            '<?xml version="1.0"?>\n'
+            '<SSIS:Parameters xmlns:SSIS="www.microsoft.com/SqlServer/SSIS">'
+            "</SSIS:Parameters>"
+        )
+        (tmp_path / "ZProject.params").write_text(params_content, encoding="utf-8")
+
+        result = dispatch(str(tmp_path))
+
+        assert result["summary"]["projects"] == 1
+        assert len(result["projects"]) == 1
+        assert result["projects"][0]["file_type"] == "dtproj_project"
+
+    def test_directory_parser_error_dict_collected(self, tmp_path):
+        """A .dtproj missing required elements returns an error dict rather
+        than raising — dispatch must collect that the same way it collects
+        a raised SSISParseError, not append it as a successful project."""
+        incomplete_dtproj = (
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            "<Project><ProductVersion>15.0.0.0</ProductVersion></Project>"
+        )
+        (tmp_path / "Incomplete.dtproj").write_text(incomplete_dtproj, encoding="utf-8")
+
+        result = dispatch(str(tmp_path))
+
+        assert result["summary"]["errors"] == 1
+        assert result["summary"]["projects"] == 0
+        assert result["errors"][0]["file_type"] == "dtproj_project"
+        assert result["errors"][0]["error"]["error"] is True
+
+    def test_directory_unexpected_exception_collected(self, tmp_path):
+        """A non-SSISParseError raised mid-parse is still collected as an
+        error entry instead of aborting the whole directory dispatch."""
+        dtsx_content = (
+            '<?xml version="1.0"?>\n'
+            '<DTS:Executable xmlns:DTS="www.microsoft.com/SqlServer/Dts" '
+            'DTS:refId="Package" DTS:CreationName="Microsoft.Package" '
+            'DTS:ObjectName="TestPackage" DTS:DTSID="{TEST-GUID}">'
+            "</DTS:Executable>"
+        )
+        (tmp_path / "test.dtsx").write_text(dtsx_content, encoding="utf-8")
+
+        def _raise_unexpected(path: str) -> dict:
+            raise RuntimeError("boom")
+
+        with patch(
+            "pydtsx_parser.dispatcher._EXTENSION_TO_PARSER",
+            {".dtsx": _raise_unexpected},
+        ):
+            result = dispatch(str(tmp_path))
+
+        assert result["summary"]["errors"] == 1
+        assert result["errors"][0]["error"]["error_type"] == "unexpected_error"
+        assert "boom" in result["errors"][0]["error"]["message"]
+
 
 class TestExtractObjectName:
     """Tests for _extract_object_name helper."""
@@ -279,6 +351,18 @@ class TestExtractObjectName:
     def test_missing_attributes_returns_none(self):
         content = {}
         assert _extract_object_name(content, ".dtsx") is None
+
+    def test_unrecognized_extension_returns_none(self):
+        assert _extract_object_name({"anything": "here"}, ".unknown") is None
+
+    def test_dtproj_manifest_explicitly_none_returns_none(self):
+        """Regression test: parse_dtproj sets "manifest": None (not a
+        missing key) for a .dtproj with no manifest section. content.get(
+        "manifest", {}) does NOT fall back to {} in that case -- .get's
+        default only applies to an absent key -- so this used to raise
+        AttributeError: 'NoneType' object has no attribute 'get'."""
+        content = {"manifest": None}
+        assert _extract_object_name(content, ".dtproj") is None
 
 
 class TestBuildCrossReferences:
@@ -319,3 +403,26 @@ class TestBuildCrossReferences:
         result = _build_cross_references(packages, [], [])
         assert "MyPackage" in result["package_connection_references"]
         assert result["package_connection_references"]["MyPackage"] == ["DB", "DW"]
+
+    def test_connection_manager_without_object_name_skipped(self):
+        """A conmgr entry with no ObjectName can't be indexed by name."""
+        conn_managers = [{"file_path": "/x/DB.conmgr", "file_name": "DB.conmgr"}]
+        result = _build_cross_references([], conn_managers, [])
+        assert result["connection_manager_index"] == {}
+
+    def test_package_connection_without_object_name_skipped(self):
+        """A referenced connection manager with no ObjectName can't be
+        listed, but a sibling one with a name still is."""
+        packages = [
+            {
+                "object_name": "MyPackage",
+                "content": {
+                    "connection_managers": [
+                        {"file_name": "anonymous.conmgr"},
+                        {"object_name": "DB"},
+                    ]
+                },
+            }
+        ]
+        result = _build_cross_references(packages, [], [])
+        assert result["package_connection_references"]["MyPackage"] == ["DB"]
