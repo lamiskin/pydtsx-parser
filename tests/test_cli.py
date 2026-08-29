@@ -8,6 +8,9 @@ Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7
 """
 
 import json
+import sys
+from pathlib import Path
+from unittest.mock import patch
 
 from pydtsx_parser.cli import main, parse_args
 
@@ -85,6 +88,64 @@ class TestMainSingleFile:
         exit_code = main([str(dtsx_file)])
 
         assert exit_code == 0
+
+
+class TestMainArgsFromSysArgv:
+    """main(args=None) falls back to sys.argv[1:]."""
+
+    def test_none_args_uses_sys_argv(self, tmp_path, capsys):
+        dtsx_file = tmp_path / "Package.dtsx"
+        dtsx_file.write_text(MINIMAL_DTSX, encoding="utf-8")
+
+        with patch.object(sys, "argv", ["pydtsx-parser", str(dtsx_file)]):
+            exit_code = main()
+
+        assert exit_code == 0
+        result = json.loads(capsys.readouterr().out)
+        assert result["file_type"] == "dtsx_package"
+
+
+class TestMainDispatchErrors:
+    """Errors raised by dispatch() itself, for a single file."""
+
+    def test_malformed_xml_returns_error(self, tmp_path, capsys):
+        bad_file = tmp_path / "bad.dtsx"
+        bad_file.write_text("not xml at all!!", encoding="utf-8")
+
+        exit_code = main([str(bad_file)])
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "Error:" in captured.err
+
+    def test_unexpected_exception_returns_error(self, tmp_path, capsys):
+        dtsx_file = tmp_path / "Package.dtsx"
+        dtsx_file.write_text(MINIMAL_DTSX, encoding="utf-8")
+
+        with patch("pydtsx_parser.cli.dispatch", side_effect=RuntimeError("boom")):
+            exit_code = main([str(dtsx_file)])
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "Unexpected error" in captured.err
+        assert "boom" in captured.err
+
+
+class TestMainOutputWriteFailure:
+    """--output when the write itself fails (permissions, disk, etc.)."""
+
+    def test_oserror_writing_output_returns_error(self, tmp_path, capsys):
+        dtsx_file = tmp_path / "Package.dtsx"
+        dtsx_file.write_text(MINIMAL_DTSX, encoding="utf-8")
+        output_file = tmp_path / "output.json"
+
+        with patch.object(Path, "write_text", side_effect=OSError("disk full")):
+            exit_code = main([str(dtsx_file), "--output", str(output_file)])
+
+        assert exit_code == 1
+        captured = capsys.readouterr()
+        assert "Cannot write to output file" in captured.err
 
 
 class TestMainDirectory:
