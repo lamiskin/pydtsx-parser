@@ -16,6 +16,7 @@ import importlib
 import json
 import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -190,6 +191,37 @@ def two_pipeline_package_path(tmp_path: Path) -> str:
     return str(path)
 
 
+_NESTED_CONTAINER_PACKAGE = f"""<?xml version="1.0"?>
+<DTS:Executable xmlns:DTS="{DTS_NS}"
+  DTS:refId="Package"
+  DTS:CreationName="Microsoft.Package"
+  DTS:ObjectName="Package"
+  DTS:ExecutableType="Microsoft.Package">
+  <DTS:Executables>
+    <DTS:Executable
+      DTS:refId="Package\\Container"
+      DTS:CreationName="STOCK:SEQUENCE"
+      DTS:ObjectName="Container">
+      <DTS:Executables>
+        <DTS:Executable
+          DTS:refId="Package\\Container\\ChildTask"
+          DTS:CreationName="Microsoft.ExecuteSQLTask"
+          DTS:ObjectName="ChildTask" />
+      </DTS:Executables>
+    </DTS:Executable>
+  </DTS:Executables>
+</DTS:Executable>"""
+
+
+@pytest.fixture
+def nested_container_package_path(tmp_path: Path) -> str:
+    """A package with a Sequence Container wrapping one child task, to
+    exercise _categorize_executables' recursion into child_executables."""
+    path = tmp_path / "NestedContainer.dtsx"
+    path.write_text(_NESTED_CONTAINER_PACKAGE, encoding="utf-8")
+    return str(path)
+
+
 class TestToolRegistration:
     def test_all_tools_registered(self):
         """Every documented tool is registered on the MCPServer instance."""
@@ -236,12 +268,94 @@ class TestGetPackageSummary:
         data = json.loads(mcp_server.get_package_summary(str(tmp_path / "no.dtsx")))
         assert data.get("error") is True
 
+    def test_summarizes_tasks_and_data_flow_from_real_package(self):
+        """Loader.dtsx exercises the parts a pipeline-free package can't:
+        task categorization (including the SQL task branch), the pipeline ->
+        _find_executable_in_tree -> extract_pipeline summary path, and a
+        real precedence constraint.
+        """
+        data = json.loads(
+            mcp_server.get_package_summary(str(SSIS_EXAMPLES_DIR / "Loader.dtsx"))
+        )
+        assert data["task_counts"] == {"Pipeline": 1, "ExecuteSQLTask": 1}
+        assert data["total_tasks"] == 2
+        assert data["sql_tasks"] == [
+            {"task_name": "Execute SQL Task", "ref_id": "Package\\Execute SQL Task"}
+        ]
+        assert data["data_flows"] == [
+            {
+                "task_name": "Data Flow Task",
+                "source_count": 1,
+                "destination_count": 1,
+                "transformation_count": 0,
+                "total_components": 3,
+                "topological_order": [
+                    "Flat File Source",
+                    "Data Conversion",
+                    "OLE DB Destination",
+                ],
+            }
+        ]
+        assert data["precedence_constraint_count"] == 1
+
+    def test_recurses_into_child_executables(self, nested_container_package_path):
+        """A task inside a Sequence Container must still be counted."""
+        data = json.loads(mcp_server.get_package_summary(nested_container_package_path))
+        assert data["task_counts"] == {"SEQUENCE": 1, "ExecuteSQLTask": 1}
+        assert data["total_tasks"] == 2
+        assert data["sql_tasks"] == [
+            {"task_name": "ChildTask", "ref_id": "Package\\Container\\ChildTask"}
+        ]
+
 
 class TestGetSqlCode:
     def test_no_sql_tasks_yields_empty_list(self, package_path):
         data = json.loads(mcp_server.get_sql_code(package_path))
         assert data["sql_statements"] == []
         assert data["count"] == 0
+
+    def test_missing_file_returns_error_json(self, tmp_path):
+        data = json.loads(mcp_server.get_sql_code(str(tmp_path / "missing.dtsx")))
+        assert data.get("error") is True
+
+    def test_finds_execute_sql_task(self):
+        data = json.loads(
+            mcp_server.get_sql_code(str(SSIS_EXAMPLES_DIR / "Loader.dtsx"))
+        )
+        assert data["count"] == 1
+        stmt = data["sql_statements"][0]
+        assert stmt["task_name"] == "Execute SQL Task"
+        assert stmt["sql_statement"] == "truncate table [temp].[SOURCE_DUPES]"
+
+    def test_finds_pipeline_source_sql(self):
+        """ExportColumn.dtsx's OLE DB Source has a SqlCommand, not a table name."""
+        data = json.loads(
+            mcp_server.get_sql_code(str(SSIS_EXAMPLES_DIR / "ExportColumn.dtsx"))
+        )
+        assert data["count"] == 1
+        stmt = data["sql_statements"][0]
+        assert stmt["task_type"] == "DataFlowSource"
+        assert stmt["sql_statement"] == "[demo].[export_column]"
+        assert stmt["sql_source_type"] == "table_or_view"
+
+    def test_task_name_excludes_non_matching_sql_task(self):
+        """Filtering to the pipeline's name must skip the SQL task entirely."""
+        data = json.loads(
+            mcp_server.get_sql_code(
+                str(SSIS_EXAMPLES_DIR / "Loader.dtsx"), task_name="Data Flow Task"
+            )
+        )
+        assert all(s["task_name"] != "Execute SQL Task" for s in data["sql_statements"])
+
+    def test_task_name_excludes_non_matching_pipeline(self):
+        """Filtering to the SQL task's name must skip the pipeline entirely."""
+        data = json.loads(
+            mcp_server.get_sql_code(
+                str(SSIS_EXAMPLES_DIR / "Loader.dtsx"), task_name="Execute SQL Task"
+            )
+        )
+        assert data["count"] == 1
+        assert data["sql_statements"][0]["task_name"] == "Execute SQL Task"
 
 
 class TestGetDataLineage:
@@ -341,3 +455,46 @@ class TestGetDataFlows:
         data = json.loads(mcp_server.get_data_flows(package_path))
         assert data["data_flows"] == []
         assert data["count"] == 0
+
+    def test_missing_file_returns_error_json(self, tmp_path):
+        data = json.loads(mcp_server.get_data_flows(str(tmp_path / "missing.dtsx")))
+        assert data.get("error") is True
+
+    def test_extracts_full_pipeline_definition(self):
+        data = json.loads(
+            mcp_server.get_data_flows(str(SSIS_EXAMPLES_DIR / "Loader.dtsx"))
+        )
+        assert data["count"] == 1
+        flow = data["data_flows"][0]
+        assert flow["task_name"] == "Data Flow Task"
+        assert {c["name"] for c in flow["components"]} == {
+            "Flat File Source",
+            "Data Conversion",
+            "OLE DB Destination",
+        }
+        assert len(flow["paths"]) == 2
+        assert flow["topological_order"] == [
+            "Flat File Source",
+            "Data Conversion",
+            "OLE DB Destination",
+        ]
+        # Every component in this fixture has an error output.
+        assert len(flow["error_outputs"]) == 3
+
+    def test_task_name_filters_to_matching_pipeline_only(
+        self, two_pipeline_package_path
+    ):
+        data = json.loads(
+            mcp_server.get_data_flows(two_pipeline_package_path, task_name="DFT Two")
+        )
+        assert data["count"] == 1
+        assert data["data_flows"][0]["task_name"] == "DFT Two"
+
+
+class TestMain:
+    def test_main_runs_the_server(self):
+        """main() is the console-script entry point; don't actually block on
+        a real server — just confirm it hands off to mcp.run()."""
+        with patch.object(mcp_server.mcp, "run") as mock_run:
+            mcp_server.main()
+        mock_run.assert_called_once_with()
