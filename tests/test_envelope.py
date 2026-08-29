@@ -2,12 +2,14 @@
 
 import json
 import os
+import sys
 import tempfile
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from pydtsx_parser import envelope
 from pydtsx_parser.envelope import (
     FORMAT_VERSION,
     PARSER_VERSION,
@@ -147,6 +149,71 @@ class TestCollectSourceFileMetadata:
             assert meta["file_size_bytes"] == 100
         finally:
             os.unlink(temp_path)
+
+
+class TestResolveFileOwner:
+    """Tests for _resolve_file_owner()'s platform dispatch and its two
+    platform-specific resolvers. Neither resolver's success path is
+    normally reachable in a single CI run: the "coverage" job only runs on
+    Linux, and even a Windows runner lacks pywin32 unless it's separately
+    installed. sys.modules patching exercises the Windows path's real logic
+    without needing either.
+    """
+
+    def test_dispatches_to_windows_resolver_on_windows(self, temp_file):
+        with (
+            patch("pydtsx_parser.envelope.platform.system", return_value="Windows"),
+            patch(
+                "pydtsx_parser.envelope._resolve_windows_owner",
+                return_value="WIN\\user",
+            ) as mock_resolver,
+        ):
+            result = envelope._resolve_file_owner(temp_file)
+        mock_resolver.assert_called_once_with(temp_file)
+        assert result == "WIN\\user"
+
+    def test_dispatches_to_unix_resolver_off_windows(self, temp_file):
+        with (
+            patch("pydtsx_parser.envelope.platform.system", return_value="Linux"),
+            patch(
+                "pydtsx_parser.envelope._resolve_unix_owner", return_value="alice"
+            ) as mock_resolver,
+        ):
+            result = envelope._resolve_file_owner(temp_file)
+        mock_resolver.assert_called_once_with(temp_file)
+        assert result == "alice"
+
+    def test_windows_owner_none_when_win32security_unavailable(self, temp_file):
+        """This dev/CI environment genuinely lacks pywin32, so this exercises
+        the real ModuleNotFoundError -> except -> None path, not a mock."""
+        assert "win32security" not in sys.modules
+        assert envelope._resolve_windows_owner(temp_file) is None
+
+    def test_windows_owner_with_domain(self, temp_file):
+        mock_win32security = MagicMock()
+        mock_win32security.LookupAccountSid.return_value = ("someuser", "SOMEDOMAIN", 1)
+        with patch.dict(sys.modules, {"win32security": mock_win32security}):
+            result = envelope._resolve_windows_owner(temp_file)
+        assert result == "SOMEDOMAIN\\someuser"
+
+    def test_windows_owner_without_domain(self, temp_file):
+        mock_win32security = MagicMock()
+        mock_win32security.LookupAccountSid.return_value = ("someuser", "", 1)
+        with patch.dict(sys.modules, {"win32security": mock_win32security}):
+            result = envelope._resolve_windows_owner(temp_file)
+        assert result == "someuser"
+
+    def test_windows_owner_none_when_lookup_raises(self, temp_file):
+        mock_win32security = MagicMock()
+        mock_win32security.GetFileSecurity.side_effect = OSError("access denied")
+        with patch.dict(sys.modules, {"win32security": mock_win32security}):
+            result = envelope._resolve_windows_owner(temp_file)
+        assert result is None
+
+    def test_unix_owner_none_when_pwd_lookup_fails(self, temp_file):
+        with patch("pwd.getpwuid", side_effect=KeyError("no such uid")):
+            result = envelope._resolve_unix_owner(temp_file)
+        assert result is None
 
 
 class TestConstants:

@@ -144,6 +144,160 @@ def malformed_xml_file(tmp_path):
     return str(path)
 
 
+_REQUIRED_TOP_LEVEL = """\
+  <DeploymentModel>Project</DeploymentModel>
+  <ProductVersion>15.0.2000.180</ProductVersion>
+  <SchemaVersion>9.0.1.0</SchemaVersion>"""
+
+
+@pytest.fixture
+def deployment_content_no_manifest(tmp_path):
+    """DeploymentModelSpecificContent present but with no Manifest child.
+
+    _extract_manifest, _extract_project_connection_parameters, and
+    _extract_package_info each independently navigate
+    DeploymentModelSpecificContent > Manifest > ..., so this exercises the
+    manifest-missing fallback in all three at once.
+    """
+    content = f"""\
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+{_REQUIRED_TOP_LEVEL}
+  <DeploymentModelSpecificContent>
+  </DeploymentModelSpecificContent>
+</Project>
+"""
+    path = tmp_path / "no_manifest.dtproj"
+    path.write_text(content, encoding="utf-8")
+    return str(path)
+
+
+@pytest.fixture
+def manifest_no_ssis_project(tmp_path):
+    """Manifest present but with no SSIS:Project child."""
+    content = f"""\
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+{_REQUIRED_TOP_LEVEL}
+  <DeploymentModelSpecificContent>
+    <Manifest>
+    </Manifest>
+  </DeploymentModelSpecificContent>
+</Project>
+"""
+    path = tmp_path / "no_ssis_project.dtproj"
+    path.write_text(content, encoding="utf-8")
+    return str(path)
+
+
+@pytest.fixture
+def empty_ssis_project(tmp_path):
+    """SSIS:Project present but with none of its optional children."""
+    content = f"""\
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+{_REQUIRED_TOP_LEVEL}
+  <DeploymentModelSpecificContent>
+    <Manifest>
+      <SSIS:Project SSIS:ProtectionLevel="DontSaveSensitive"
+          xmlns:SSIS="www.microsoft.com/SqlServer/SSIS">
+      </SSIS:Project>
+    </Manifest>
+  </DeploymentModelSpecificContent>
+</Project>
+"""
+    path = tmp_path / "empty_project.dtproj"
+    path.write_text(content, encoding="utf-8")
+    return str(path)
+
+
+@pytest.fixture
+def deployment_info_without_sections(tmp_path):
+    """DeploymentInfo present but with neither ProjectConnectionParameters
+    nor PackageInfo."""
+    content = f"""\
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+{_REQUIRED_TOP_LEVEL}
+  <DeploymentModelSpecificContent>
+    <Manifest>
+      <SSIS:Project SSIS:ProtectionLevel="DontSaveSensitive"
+          xmlns:SSIS="www.microsoft.com/SqlServer/SSIS">
+        <SSIS:DeploymentInfo>
+        </SSIS:DeploymentInfo>
+      </SSIS:Project>
+    </Manifest>
+  </DeploymentModelSpecificContent>
+</Project>
+"""
+    path = tmp_path / "empty_deployment_info.dtproj"
+    path.write_text(content, encoding="utf-8")
+    return str(path)
+
+
+@pytest.fixture
+def package_with_unrecognized_property(tmp_path):
+    """A PackageMetaData whose Properties include one name not in the
+    known property_map — SSIS files can carry future/unknown properties
+    that should be silently skipped rather than raising."""
+    content = f"""\
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+{_REQUIRED_TOP_LEVEL}
+  <DeploymentModelSpecificContent>
+    <Manifest>
+      <SSIS:Project SSIS:ProtectionLevel="DontSaveSensitive"
+          xmlns:SSIS="www.microsoft.com/SqlServer/SSIS">
+        <SSIS:DeploymentInfo>
+          <SSIS:PackageInfo>
+            <SSIS:PackageMetaData SSIS:Name="Package.dtsx">
+              <SSIS:Properties>
+                <SSIS:Property SSIS:Name="Name">Package</SSIS:Property>
+                <SSIS:Property SSIS:Name="SomeFutureProperty">value</SSIS:Property>
+              </SSIS:Properties>
+            </SSIS:PackageMetaData>
+          </SSIS:PackageInfo>
+        </SSIS:DeploymentInfo>
+      </SSIS:Project>
+    </Manifest>
+  </DeploymentModelSpecificContent>
+</Project>
+"""
+    path = tmp_path / "unrecognized_property.dtproj"
+    path.write_text(content, encoding="utf-8")
+    return str(path)
+
+
+@pytest.fixture
+def parameter_and_package_without_properties(tmp_path):
+    """A connection parameter and a package's metadata, neither carrying a
+    Properties section — the fallback shape for both."""
+    content = f"""\
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+{_REQUIRED_TOP_LEVEL}
+  <DeploymentModelSpecificContent>
+    <Manifest>
+      <SSIS:Project SSIS:ProtectionLevel="DontSaveSensitive"
+          xmlns:SSIS="www.microsoft.com/SqlServer/SSIS">
+        <SSIS:DeploymentInfo>
+          <SSIS:ProjectConnectionParameters>
+            <SSIS:Parameter SSIS:Name="CM.DB.ServerName" />
+          </SSIS:ProjectConnectionParameters>
+          <SSIS:PackageInfo>
+            <SSIS:PackageMetaData SSIS:Name="Package.dtsx" />
+          </SSIS:PackageInfo>
+        </SSIS:DeploymentInfo>
+      </SSIS:Project>
+    </Manifest>
+  </DeploymentModelSpecificContent>
+</Project>
+"""
+    path = tmp_path / "no_properties.dtproj"
+    path.write_text(content, encoding="utf-8")
+    return str(path)
+
+
 # --- Tests: Successful parsing ---
 
 
@@ -275,6 +429,57 @@ class TestParseDtprojSuccess:
         assert result["manifest"] is None
         assert result["project_connection_parameters"] == []
         assert result["package_info"] == []
+
+
+# --- Tests: Partial manifests ---
+
+
+class TestParseDtprojPartialManifest:
+    """Every level of the manifest/deployment-info navigation chain can be
+    absent independently in a real .dtproj (e.g. a project with no
+    parameters, or exported before deployment), and each should fall back
+    to an empty result rather than raising.
+    """
+
+    def test_deployment_content_without_manifest(self, deployment_content_no_manifest):
+        result = parse_dtproj(deployment_content_no_manifest)
+        assert result["manifest"] is None
+        assert result["project_connection_parameters"] == []
+        assert result["package_info"] == []
+
+    def test_manifest_without_ssis_project(self, manifest_no_ssis_project):
+        result = parse_dtproj(manifest_no_ssis_project)
+        assert result["manifest"] is None
+        assert result["project_connection_parameters"] == []
+        assert result["package_info"] == []
+
+    def test_empty_ssis_project(self, empty_ssis_project):
+        result = parse_dtproj(empty_ssis_project)
+        assert result["manifest"]["project_properties"] == {}
+        assert result["manifest"]["packages"] == []
+        assert result["manifest"]["connection_managers"] == []
+        assert result["project_connection_parameters"] == []
+        assert result["package_info"] == []
+
+    def test_deployment_info_without_sections(self, deployment_info_without_sections):
+        result = parse_dtproj(deployment_info_without_sections)
+        assert result["project_connection_parameters"] == []
+        assert result["package_info"] == []
+
+    def test_parameter_and_package_without_properties(
+        self, parameter_and_package_without_properties
+    ):
+        result = parse_dtproj(parameter_and_package_without_properties)
+        assert result["project_connection_parameters"] == [{"name": "CM.DB.ServerName"}]
+        assert result["package_info"] == [
+            {"name": "Package.dtsx", "properties": {}, "parameters": []}
+        ]
+
+    def test_unrecognized_property_is_skipped(self, package_with_unrecognized_property):
+        result = parse_dtproj(package_with_unrecognized_property)
+        # "Name" is recognized and kept; "SomeFutureProperty" isn't in the
+        # property_map and must be silently skipped, not raise or appear.
+        assert result["package_info"][0]["properties"] == {"name": "Package"}
 
 
 # --- Tests: Error conditions ---
