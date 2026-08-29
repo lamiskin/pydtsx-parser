@@ -61,6 +61,15 @@ class TestIsSensitiveAttribute:
     def test_empty_dict(self):
         assert is_sensitive_attribute({}) is False
 
+    def test_lowercase_namespace_stripped_variant(self):
+        """A key like 'IsSensitive' matches none of the three exact literal
+        keys checked first, but ends with 'sensitive' case-insensitively —
+        the fallback loop must still catch it."""
+        assert is_sensitive_attribute({"IsSensitive": "1"}) is True
+
+    def test_lowercase_namespace_stripped_variant_wrong_value(self):
+        assert is_sensitive_attribute({"IsSensitive": "0"}) is False
+
 
 class TestRedact:
     """Tests for the main redact() function."""
@@ -280,6 +289,69 @@ class TestRedact:
         }
         result, count = redact(data)
         assert count == 2
+
+    def test_already_redacted_leaf_reached_generically_not_double_counted(self):
+        """A dict shaped like {"value": PLACEHOLDER, "sensitive": True} reached
+        through a non-sensitively-named key (so via the generic "already
+        marked sensitive" path at the top of _redact_dict, not the by-field-
+        name path) must not be re-counted either."""
+        data = {"some_config": {"value": REDACTION_PLACEHOLDER, "sensitive": True}}
+        result, count = redact(data)
+        assert count == 0
+        assert result["some_config"]["value"] == REDACTION_PLACEHOLDER
+
+    def test_empty_connection_string_untouched(self):
+        data = {"connection_string": ""}
+        result, count = redact(data)
+        assert result["connection_string"] == ""
+        assert count == 0
+
+    def test_connection_string_without_equals_untouched(self):
+        """Not every string field named connection_string is actually
+        key=value; malformed/unparseable ones should pass through as-is."""
+        data = {"connection_string": "not a key value connection string"}
+        result, count = redact(data)
+        assert result["connection_string"] == "not a key value connection string"
+        assert count == 0
+
+    def test_sensitive_field_dict_without_value_key_replaced_wholesale(self):
+        """A sensitively-named field whose value is a dict NOT already shaped
+        as {"value": ..., "sensitive": ...} gets replaced entirely, not
+        merged into."""
+        data = {"password_settings": {"type": "encrypted", "algorithm": "aes256"}}
+        result, count = redact(data)
+        assert result["password_settings"] == {
+            "value": REDACTION_PLACEHOLDER,
+            "sensitive": True,
+        }
+        assert count == 1
+
+    def test_sensitive_field_numeric_value_redacted(self):
+        data = {"password_length": 8}
+        result, count = redact(data)
+        assert result["password_length"] == {
+            "value": REDACTION_PLACEHOLDER,
+            "sensitive": True,
+        }
+        assert count == 1
+
+    def test_sensitive_field_boolean_value_redacted(self):
+        data = {"password_enabled": True}
+        result, count = redact(data)
+        assert result["password_enabled"] == {
+            "value": REDACTION_PLACEHOLDER,
+            "sensitive": True,
+        }
+        assert count == 1
+
+    def test_sensitive_field_list_value_recurses_instead_of_wrapping(self):
+        """A list under a sensitively-named key isn't a single value to
+        redact wholesale — it's walked like anything else, so a list of
+        plain strings (nothing dict-shaped inside) ends up unchanged."""
+        data = {"password_history": ["old_hash_1", "old_hash_2"]}
+        result, count = redact(data)
+        assert result["password_history"] == ["old_hash_1", "old_hash_2"]
+        assert count == 0
 
     def test_no_redact_column_name_in_derived_columns(self):
         """Derived column names containing PASSWORD should not be redacted."""

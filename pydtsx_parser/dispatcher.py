@@ -315,8 +315,11 @@ def _extract_object_name(content: dict, ext: str) -> str | None:
         conn_mgr = content.get("connection_manager", {})
         return conn_mgr.get("object_name")
     elif ext == ".dtproj":
-        # Project files: use the project name from manifest
-        manifest = content.get("manifest", {})
+        # Project files: use the project name from manifest. manifest is
+        # None (not simply absent) when the .dtproj has no manifest
+        # section at all, so `or {}` is required here -- .get(key, {})
+        # only falls back for a missing key, not a present-but-None value.
+        manifest = content.get("manifest") or {}
         project_props = manifest.get("project_properties", {})
         return project_props.get("name")
     elif ext == ".params":
