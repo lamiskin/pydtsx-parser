@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydtsx-parser"
-version = "0.1.0"
+version = "0.1.1"
 description = "Parse SQL Server Integration Services (SSIS) .dtsx, .dtproj, .conmgr and .params files into structured JSON"
 readme = "README.md"
 requires-python = ">=3.11"
