@@ -36,7 +36,7 @@ class TestBuildEnvelope:
 
     def test_contains_parser_version(self, temp_file):
         result = build_envelope({}, temp_file, "dtsx_package", 0)
-        assert result["parser_version"] == "1.0.0"
+        assert result["parser_version"] == PARSER_VERSION
 
     def test_source_file_path_is_absolute(self, temp_file):
         result = build_envelope({}, temp_file, "dtsx_package", 0)
