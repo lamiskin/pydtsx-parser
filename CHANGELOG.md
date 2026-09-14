@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5](https://github.com/lamiskin/pydtsx-parser/compare/v0.1.4...v0.1.5) (2026-09-14)
+
+
+### Dependencies
+
+* bump the python group with 2 updates ([#24](https://github.com/lamiskin/pydtsx-parser/issues/24)) ([2fed5ad](https://github.com/lamiskin/pydtsx-parser/commit/2fed5adcbd9e0b3aacd57c0b7077dccda8c27b68))
+
 ## [0.1.4](https://github.com/lamiskin/pydtsx-parser/compare/v0.1.3...v0.1.4) (2026-09-08)
 
 
