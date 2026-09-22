@@ -15,7 +15,20 @@ updates:
     schedule:
       interval: weekly
     commit-message:
+      # release-please bumps a version for any visible commit type, and
+      # "deps" isn't one of its default hidden types (docs/style/chore/
+      # refactor/test/build/ci), so a dev-only bump publishing a release
+      # with no actual change to the shipped package was the default.
+      # "chore" is hidden by release-please's own defaults, so
+      # prefix-development routes pure dev/CI tooling bumps (ruff, mypy,
+      # pytest, hypothesis, pre-commit -- never in the built wheel) away
+      # from triggering a release, while runtime deps (e.g. mcp) still do.
       prefix: "deps"
+      prefix-development: "chore"
     groups:
-      python:
+      python-runtime:
+        dependency-type: "production"
+        patterns: ["*"]
+      python-dev:
+        dependency-type: "development"
         patterns: ["*"]
