@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7](https://github.com/lamiskin/pydtsx-parser/compare/v0.1.6...v0.1.7) (2026-10-10)
+
+
+### Dependencies
+
+* bump mcp ([#34](https://github.com/lamiskin/pydtsx-parser/issues/34)) ([235ac70](https://github.com/lamiskin/pydtsx-parser/commit/235ac707601ff5e48a158f38260342fae4b6ac42))
+* bump pyjwt from 2.13.0 to 2.15.0 ([#30](https://github.com/lamiskin/pydtsx-parser/issues/30)) ([eb416be](https://github.com/lamiskin/pydtsx-parser/commit/eb416bea22733ab1466079284ffb86e010508b13))
+* bump urllib3 from 2.7.0 to 2.8.0 ([#31](https://github.com/lamiskin/pydtsx-parser/issues/31)) ([019f894](https://github.com/lamiskin/pydtsx-parser/commit/019f894c0b6e035f763956c812c8647ff0388b3e))
+* bump virtualenv from 21.7.0 to 21.7.13 ([#32](https://github.com/lamiskin/pydtsx-parser/issues/32)) ([73c645a](https://github.com/lamiskin/pydtsx-parser/commit/73c645a07f2506813ce339047ad436e98b4b7b3b))
+
 ## [0.1.6](https://github.com/lamiskin/pydtsx-parser/compare/v0.1.5...v0.1.6) (2026-09-22)
 
 
