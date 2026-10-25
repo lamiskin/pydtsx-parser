@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8](https://github.com/lamiskin/pydtsx-parser/compare/v0.1.7...v0.1.8) (2026-10-25)
+
+
+### Dependencies
+
+* bump certifi from 2026.7.22 to 2026.10.19 ([0de831a](https://github.com/lamiskin/pydtsx-parser/commit/0de831a2c59cfeea035d0d7f32a652b565ccc884))
+* bump filelock from 3.32.0 to 4.2.1 ([228e2f2](https://github.com/lamiskin/pydtsx-parser/commit/228e2f2af2dd386dd8d44ad6f2f6ea7476f52d7f))
+* bump opentelemetry-api from 1.44.0 to 1.45.1 ([02499c0](https://github.com/lamiskin/pydtsx-parser/commit/02499c03bc1d239a7c415f81d1ad8ef0c6d0a882))
+* bump virtualenv from 21.7.13 to 21.14.13 ([#38](https://github.com/lamiskin/pydtsx-parser/issues/38)) ([b792e34](https://github.com/lamiskin/pydtsx-parser/commit/b792e34e75f640cd0644e3dcd49a032ecab072be))
+
 ## [0.1.7](https://github.com/lamiskin/pydtsx-parser/compare/v0.1.6...v0.1.7) (2026-10-10)
 
 
